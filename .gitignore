@@ -1,0 +1,12 @@
+# SPM
+.build/
+Package.resolved
+
+# Xcode
+*.xcworkspace
+*.xcodeproj
+xcuserdata/
+DerivedData/
+
+# macOS
+.DS_Store

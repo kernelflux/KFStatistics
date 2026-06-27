@@ -1,0 +1,42 @@
+// ──────────────────────────────────────────────
+//  KFStatistics - Wire protocol schema
+//  This .proto defines the on-disk and on-wire
+//  binary format for event batches.
+//  Use protoc to generate Swift code when
+//  integrating with swift-protobuf.
+// ──────────────────────────────────────────────
+
+syntax = "proto3";
+
+package eventstracker;
+
+// ── Single event record ──
+message EventRecord {
+  string event_id       = 1;   // UUID v7
+  string event_name     = 2;   // e.g. "ButtonClick"
+  uint32 schema_version = 3;   // schema version for forward compat
+  uint64 timestamp_ms   = 4;   // epoch milliseconds
+  string session_id     = 5;   // current app session
+  string user_id        = 6;   // hashed user identifier
+  uint32 priority       = 7;   // 0=background, 1=info, 2=critical
+
+  // ── Event-specific payload ──
+  // Encoded as a packed field array using our
+  // lightweight binary format (see EventSerializer).
+  bytes payload = 8;
+}
+
+// ── Batch of events sent in one request ──
+message EventBatch {
+  string app_version  = 1;
+  string device_id    = 2;
+  string platform     = 3; // "ios" / "tvos" / etc.
+  uint64 created_at   = 4;
+  repeated EventRecord events = 5;
+}
+
+// ── Server acknowledgment ──
+message AckResponse {
+  uint32 accepted_count = 1;
+  string error_message  = 2;
+}
