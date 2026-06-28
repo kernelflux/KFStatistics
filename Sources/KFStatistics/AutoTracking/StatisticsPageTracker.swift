@@ -71,20 +71,14 @@ public final class StatisticsPageTracker: @unchecked Sendable {
 //  MARK: - Actor-isolated state
 // ═══════════════════════════════════════════════
 
-/// 页面栈状态，通过 actor 隔离保证线程安全。
-///
-/// 注意：此类使用 `@unchecked Sendable` 是因为它在
-/// 内部使用 os_unfair_lock 保护可变状态。所有公共
-/// 方法线程安全。
+/// 页面栈状态，通过 `OSAllocatedUnfairLock` 保证线程安全。
 final class PageTrackerState: @unchecked Sendable {
 
-    /// 页面堆栈，FIFO。
-    private var pageStack: [String] = []
-    private let lock = os_unfair_lock_t.allocate(capacity: 1)
+    private struct State {
+        var pageStack: [String] = []
+    }
 
-    init() { lock.initialize(to: os_unfair_lock()) }
-
-    deinit { lock.deinitialize(count: 1); lock.deallocate() }
+    private let state = OSAllocatedUnfairLock(initialState: State())
 
     // ── 线程安全的修改方法 ──
 
@@ -93,10 +87,11 @@ final class PageTrackerState: @unchecked Sendable {
               !pageName.isEmpty
         else { return }
 
-        os_unfair_lock_lock(lock)
-        let referrer = pageStack.last ?? ""
-        pageStack.append(pageName)
-        os_unfair_lock_unlock(lock)
+        let referrer = state.withLock { s -> String in
+            let ref = s.pageStack.last ?? ""
+            s.pageStack.append(pageName)
+            return ref
+        }
 
         let properties: [String: StatisticsValue] = [
             "pageName": .string(pageName),
@@ -113,12 +108,11 @@ final class PageTrackerState: @unchecked Sendable {
               let durationMs = notification.userInfo?["durationMs"] as? UInt64
         else { return }
 
-        os_unfair_lock_lock(lock)
-        // 只移除最后一个匹配项（栈顶），而非所有匹配项
-        if let index = pageStack.lastIndex(of: pageName) {
-            pageStack.remove(at: index)
+        state.withLock { s in
+            if let index = s.pageStack.lastIndex(of: pageName) {
+                s.pageStack.remove(at: index)
+            }
         }
-        os_unfair_lock_unlock(lock)
 
         let properties: [String: StatisticsValue] = [
             "pageName": .string(pageName),

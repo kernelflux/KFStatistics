@@ -19,6 +19,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
+        .package(path: "../kfservice"),
     ],
     targets: [
         .target(
@@ -27,7 +28,7 @@ let package = Package(
         ),
         .target(
             name: "KFStatistics",
-            dependencies: ["KFStatisticsCore"],
+            dependencies: ["KFStatisticsCore", .product(name: "KFService", package: "KFService")],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
                 .enableUpcomingFeature("StrictConcurrency"),
