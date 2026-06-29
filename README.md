@@ -101,6 +101,10 @@ KFStatistics.track(Purchase(itemID: "sku_123", price: 29.99, quantity: 2))
 │Handler  │   │ Transport        │
 │(simple) │   │ (advanced)       │
 └─────────┘   └──────────────────┘
+   ┌────────▼────────┐
+   │ StatisticsSink   │  Forward to commercial SDK
+   │ (pluggable)      │  (Umeng / Firebase)
+   └──────────────────┘
 ```
 
 ### Pluggable layers
@@ -110,6 +114,7 @@ KFStatistics.track(Purchase(itemID: "sku_123", price: 29.99, quantity: 2))
 | Transport | `StatisticsTransport` (public) | `StatisticsHTTPTransport` (URLSession) | Yes |
 | Storage | `StatisticsStorage` (internal) | `StatisticsFileStorage` (mmap WAL) | No |
 | Serializer | `StatisticsSerializer` (internal) | `StatisticsBinarySerializer` | No |
+| Sink | `StatisticsSink` (public) | `NoOpStatisticsSink` | Yes |
 
 ## KFStatisticsService Protocol (v3)
 
@@ -185,12 +190,52 @@ var config = StatisticsConfig()
 config.transport = GRPCTransport()
 ```
 
+## StatisticsSink — Third-party Forwarding
+
+Events that pass through the full pipeline (serialize → store → dispatch) are also forwarded to a pluggable `StatisticsSink`:
+
+```swift
+var config = StatisticsConfig()
+config.sink = UmengAdapter(appKey: "YOUR_UMENG_KEY", channel: "App Store")
+```
+
+Each adapter initializes the underlying SDK internally — just pass credentials.
+
+### UmengAdapter (China)
+
+```swift
+import KFStatistics
+import UMCommon
+
+// config.sink = UmengAdapter(appKey:key, channel:"App Store")
+```
+
+Maps `DynamicEvent.name` → `MobClick.event(_:attributes:)`.  
+Dependency: `umeng-spm` → `UMCommon` (7.5.11).
+
+### FirebaseAnalyticsAdapter (Global)
+
+```swift
+import KFStatistics
+import FirebaseAnalytics
+
+// config.sink = FirebaseAnalyticsAdapter()
+```
+
+Maps `DynamicEvent` properties to `Analytics.logEvent(_:parameters:)`. Boolean → `"true"/"false"`, Data fields are skipped.  
+Dependency: `firebase-ios-sdk` → `FirebaseAnalytics` (12.15.0).
+
+> Firebase itself must be configured via `FirebaseApp.configure()` in the host app before use.
+
 ## Products
 
 | Product | Description |
 |---------|-------------|
 | `KFStatistics` | Full SDK (Core + Macros + Runtime) |
-| `KFStatisticsCore` | Protocol-only layer — `EventProtocol`, `StatisticsConfig`, `StatisticsTransport`, `KFStatisticsService` |
+| `KFStatisticsCore` | Protocol-only layer — `EventProtocol`, `StatisticsConfig`, `StatisticsTransport`, `KFStatisticsService`, `StatisticsSink` |
+| `KFStatisticsMacros` | `@Trackable` macro implementation |
+| `KFStatisticsChina` | `KFStatistics` + `UmengAdapter` (Umeng 7.5.11) |
+| `KFStatisticsGlobal` | `KFStatistics` + `FirebaseAnalyticsAdapter` (Firebase 12.15.0) |
 
 ## Performance
 
@@ -218,6 +263,7 @@ Sources/
 │   ├── StatisticsBatch.swift      Batch model
 │   ├── StatisticsTransport.swift  StatisticsTransport protocol, UploadHandler
 │   ├── KFStatisticsService.swift  Service protocol for DI
+│   ├── StatisticsSink.swift        StatisticsSink protocol, NoOpStatisticsSink
 │   └── StatisticsTrackablePage.swift
 ├── KFStatistics/              ← Runtime engine + KFStatisticsAssembly + KFStatisticsStartupModule
 │   ├── KFStatisticsDefault.swift  Default implementation
@@ -231,7 +277,10 @@ Sources/
 │   ├── AutoTracking/              UIKit swizzling + SwiftUI view modifier
 │   └── Utility/                   RingBuffer, AnyEvent
 ├── KFStatisticsMacros/        ← @Trackable macro implementation
-└── KFStatisticsTestSupport/   ← Mock storage for testing
+├── KFStatisticsTestSupport/   ← Mock storage for testing
+└── Adapters/
+    ├── Umeng/                 ← UmengAdapter (KFStatisticsChina)
+    └── FirebaseAnalytics/     ← FirebaseAnalyticsAdapter (KFStatisticsGlobal)
 ```
 
 ## License
