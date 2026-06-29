@@ -201,6 +201,9 @@ public enum KFStatistics {
         let pipeline = readPipeline()
         guard let pipeline else { return }
         Task(priority: .utility) { try? await pipeline.track(event) }
+        if let dyn = event as? DynamicEvent {
+            configuration.sink?.report(event: dyn)
+        }
     }
 
     public static func track(
