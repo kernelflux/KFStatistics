@@ -21,10 +21,9 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
-        .package(path: "../kfservice"),
+        .package(url: "https://github.com/kernelflux/kfservice.git", from: "1.0.1"),
         .package(url: "https://github.com/firebase/firebase-ios-sdk.git", from: "12.15.0"),
-        // Umeng SDK mirror (xcframework binary, see umeng-spm repo)
-        .package(path: "../../umeng-spm"),
+        .package(url: "https://github.com/kernelflux/umeng-spm.git", from: "1.0.0"),
     ],
     targets: [
         .target(
