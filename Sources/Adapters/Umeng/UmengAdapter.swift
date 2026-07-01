@@ -21,6 +21,6 @@ public struct UmengAdapter: StatisticsSink {
         for (k, v) in event.properties {
             if case .string(let s) = v { attrs[k] = s }
         }
-        MobClick.event(event.name, attributes: attrs.isEmpty ? nil : attrs)
+        MobClick.event(event.name, attributes: attrs)
     }
 }
